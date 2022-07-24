@@ -1,0 +1,43 @@
+# 정적 파일이 위치하는 서버에 backports-zoneinfo 패키지를 추가로 설치한다 -> pip install backports-zoneinfo (poetry install 이후 설치)
+# 미 설치시 collectstatic 명령이 안된다.
+
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ feature/cicd적용 ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build Docker Image for Server
+      run: | 
+        docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_PASSWORD }} 
+        docker build . --file Dockerfile --tag ${{ secrets.DOCKER_HUB_USERNAME }}/winkyfarm:${GITHUB_SHA::7} --tag ${{ secrets.DOCKER_HUB_USERNAME }}/winkyfarm:latest --build-arg YOUR_ENV=production
+        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/winkyfarm:${GITHUB_SHA::7}
+        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/winkyfarm:latest
+    - name: Build Docker Image for Worker
+      run: |
+        docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_PASSWORD }} 
+        docker build . --file DockerfileForWorker --tag ${{ secrets.DOCKER_HUB_USERNAME }}/winkyfarm_push_worker:${GITHUB_SHA::7} --tag ${{ secrets.DOCKER_HUB_USERNAME }}/winkyfarm_push_worker:latest --build-arg YOUR_ENV=production
+        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/winkyfarm_push_worker:${GITHUB_SHA::7}
+        docker push ${{ secrets.DOCKER_HUB_USERNAME }}/winkyfarm_push_worker:latest
+    - name: executing remote ssh commands using password
+      uses: appleboy/ssh-action@master  # docs: https://github.com/marketplace/actions/ssh-remote-commands?version=v0.1.4
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USERNAME }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+        port: ${{ secrets.SERVER_PORT }}
+        envs: GITHUB_SHA
+        script: |
+          kubectl set image deployment/winkyfarm winkyfarm=joje1283/winkyfarm:${GITHUB_SHA::7}
+          kubectl set image deployment/winkyfarm-push-worker winkyfarm=joje1283/winkyfarm_push_worker:${GITHUB_SHA::7}
+          cd ~/Projects/winkyfarm
+          git checkout feature/cicd적용
+          git pull
+          /home/paul/Projects/winkyfarm/venv/bin/pip install -r requirements.txt
+          /home/paul/Projects/winkyfarm/venv/bin/python ./manage.py collectstatic --settings=winkyfarm.settings.collectstatic --no-input
+# 배포 이미지 교체 명령 : kubectl set image {{deployment-name}} {{container-name}}=image-name
