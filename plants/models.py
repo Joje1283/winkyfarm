@@ -1,4 +1,6 @@
+import qrcode
 from django.db import models
+from django.urls import reverse
 
 
 class WaterLog(models.Model):
@@ -19,3 +21,12 @@ class Plant(models.Model):
 
     def give_water(self):
         WaterLog.objects.create(plant=self)
+
+    def get_absolute_url(self):
+        return reverse('plants:plant_detail', args=[self.pk])
+
+    def create_qrcode(self):
+        url = f"https://api.joje.link{self.get_absolute_url()}"
+        result = qrcode.make(url)
+        result = result.save("test.png")
+        return result

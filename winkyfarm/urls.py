@@ -10,6 +10,7 @@ def trigger_error(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('sentry-debug/', trigger_error),
+    path("plants/", include("plants.urls"))
 ]
 
 if settings.DEBUG:
