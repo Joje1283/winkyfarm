@@ -56,3 +56,5 @@ spec:
               value: "{{ ALLOWED_HOST }}"
             - name: CELERY_BROKER_URL
               value: "{{ CELERY_BROKER_URL }}"
+            - name: SENTRY_DSN
+                value: "{{ SENTRY_DSN }}"
